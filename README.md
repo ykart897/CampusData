@@ -23,15 +23,22 @@ Türkiye'deki üniversite adayları için lisans programlarını inceleme, filtr
 - Net Sihirbazı: puan hesaplama yardımcı ekranı
 - Tercih Listem: kullanıcıya özel lisans tercih listeleri
 
-## Hızlı Başlangıç (Docker ile)
+## Hızlı Başlangıç
 
-Tüm sistem (Postgres + Redis + Backend + Frontend) tek komutla:
+Postgres + Redis Docker ile:
 
 ```powershell
-docker compose up -d --build
+docker compose up -d
 ```
 
-Veri import (bir kerelik):
+Backend:
+
+```powershell
+cd backend
+mvn spring-boot:run
+```
+
+Veri import (yeni terminal):
 
 ```powershell
 $env:YOKATLAS_IMPORT_MODE="import"
@@ -40,13 +47,21 @@ $env:YOKATLAS_SNAPSHOT_PATH="database/snapshots/yokatlas-lisans-2026-05-16T11-16
 node database/import_yokatlas_api.mjs
 ```
 
+Frontend (yeni terminal):
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
 Adresler:
 
-- Frontend: `http://localhost`
-- Backend API: `http://localhost:8080`
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8080`
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 
-Detaylı kurulum: `ARKADASA_GONDER.md` dosyasına bakın.
+Detaylı kurulum ve sorun giderme: `ARKADASA_GONDER.md` dosyasına bakın.
 
 ## YÖK Atlas Verisini Yenileme
 

@@ -1,14 +1,13 @@
 # Arkadasa Gonderme ve Calistirma
 
-Tum sistem (Postgres + Redis + Backend + Frontend) **Docker icinde** calisir.
-Makinede sadece **Docker Desktop** + **Node.js** gerekir.
+Bu paket, projeyi ayni gorunum ve ayni lisans verisiyle calistirmak icin hazirlanmistir.
 
 ## Gerekenler
 
 - Docker Desktop (acik olmali)
-- Node.js 18+ (sadece bir kerelik veri import icin)
-
-> Java, Maven, npm kurulu olmasi gerekmez. Hepsi Docker icinde.
+- Java JDK 17+
+- Maven 3.8+
+- Node.js 18+
 
 ## 1. Projeyi al
 
@@ -19,98 +18,92 @@ cd CampusData
 
 (veya ZIP'i ac, klasore gir)
 
-## 2. Tum sistemi tek komutla baslat
+## 2. Postgres + Redis'i Docker ile baslat
 
 ```powershell
-docker compose up -d --build
+docker compose up -d
 ```
 
-Bu komut:
-- Postgres + Redis indirir, baslatir
-- Backend'i derler (Maven build, ~3 dk ilk seferde)
-- Frontend'i derler (npm install + vite build, ~2 dk ilk seferde)
-- Flyway migration'lari calistirir (V1..V15)
-- Hepsini sirayla saglik kontrolu ile baslatir
-
-Ilerlemeyi izle:
+Bu komut sadece veritabani ve cache'i baslatir. Eger eski container'lar varsa once temizle:
 
 ```powershell
-docker compose logs -f
+docker compose down -v
+docker compose up -d
 ```
 
-`Started UniversiteAtlasiApplication` yazisini gorunce backend hazirdir.
+## 3. Backend'i baslat
 
-## 3. Lisans verisini iceri aktar (bir kerelik)
+Flyway migration'lari otomatik calisir (V1..V15). Sample data temizlenir.
 
 ```powershell
+cd backend
+mvn spring-boot:run
+```
+
+`Started UniversiteAtlasiApplication` yazisini gorunce backend hazirdir. Terminali kapatma.
+
+## 4. Lisans verisini iceri aktar (yeni terminal)
+
+```powershell
+cd CampusData
 $env:YOKATLAS_IMPORT_MODE="import"
 $env:YOKATLAS_IMPORT_APPROVED="true"
 $env:YOKATLAS_SNAPSHOT_PATH="database/snapshots/yokatlas-lisans-2026-05-16T11-16-07.841Z.json"
 node database/import_yokatlas_api.mjs
 ```
 
-Cikti: `Upserted and validated 12265 programs` gormelisin.
+Cikti: `Upserted and validated 12265 programs into Docker PostgreSQL` gormelisin.
 
-## 4. Tarayicida ac
-
-- Frontend: http://localhost
-- Backend API: http://localhost:8080
-- Backend saglik: http://localhost:8080/actuator/health
-
-## Yonetim Komutlari
+## 5. Frontend'i baslat (yeni terminal)
 
 ```powershell
-docker compose stop          # Durdur (veri korunur)
-docker compose start         # Tekrar baslat
-docker compose down          # Container'lari sil (veri korunur)
-docker compose down -v       # HER SEYI sil (veri dahil)
-docker compose logs -f       # Tum loglari izle
-docker compose logs -f backend   # Sadece backend loglari
-docker compose ps            # Calisan servisleri goster
-docker compose up -d --build # Kod degisikligi sonrasi yeniden insa et
+cd CampusData/frontend
+npm install
+npm run dev
 ```
+
+Adresler:
+- Frontend: http://localhost:5173
+- Backend:  http://localhost:8080
 
 ## Sorun Giderme
 
-### Container baslatilamiyor: port cakismasi
+### "Container name already in use"
 
 ```powershell
-netstat -ano | findstr "80 8080 5432 6379"
+docker rm -f universiteatlasi-db universiteatlasi-redis
+docker compose up -d
 ```
-
-O portu kullanan baska uygulamayi kapat veya `docker-compose.yml`'da portu degistir.
-
-### Veriler bos gorunuyor
-
-Adim 3'u (import) calistirdin mi? Calistirdiysan tekrar et.
 
 ### "Imported program count does not match"
 
-```powershell
-docker compose down -v
-docker compose up -d --build
-# Sonra adim 3'u tekrar et
-```
-
-### Backend bashlatma hatasi
-
-```powershell
-docker compose logs backend | Select-Object -Last 50
-```
-
-### Tum sistemi sifirla
+V15 migration calismamis veya eski sample data hala duruyor. Sifirla:
 
 ```powershell
 docker compose down -v
-docker system prune -f
-docker compose up -d --build
+docker compose up -d
+# Sonra Adim 3'ten devam et
+```
+
+### "Sayfa bombos cikiyor"
+
+Adim 4'u (veri import) yapmadigin icin DB bos. Import komutunu calistir.
+
+### Java "TypeTag::UNKNOWN" hatasi (IntelliJ'de)
+
+1. Settings > Plugins > "Lombok" ara, kur
+2. Settings > Build > Compiler > Annotation Processors > **Enable annotation processing**
+3. Invalidate Caches and Restart
+
+### Port cakismasi
+
+```powershell
+netstat -ano | findstr "8080"
 ```
 
 ## Notlar
 
-- Ilk `docker compose up --build` ~5-8 dk surer (image build).
-- Sonraki baslamalar ~30 sn.
-- Kod degistirirseniz `docker compose up -d --build` yeniden insa eder.
-- Veriler `postgres_data` volume'unde kalir, container silinse de bozulmaz.
-- Backend Dockerfile multi-stage build kullanir: build asamasinda Maven, runtime'da sadece JRE → kucuk image.
-- Frontend Dockerfile da multi-stage: Node ile build, nginx ile servis.
+- `node_modules`, `target`, `dist`, `.idea` paket icinde yoktur. Kurulumda yeniden uretilir.
+- `database/snapshots/*.json` paket icindedir (lisans verisi, ~60MB).
+- Tum DB sema migration'lari otomatik calisir, elle SQL gerekmez.
+- Tum 5 adim ilk kurulumda ~10-15 dakika surer.
