@@ -161,6 +161,19 @@ function SectionPanel({
   inputs: Record<string, string>;
   onChange: (next: Record<string, string>) => void;
 }) {
+  function handleChange(next: Record<string, string>, section: { name: string; max: number }, changed: "c" | "w") {
+    const cKey = `${section.name}_c`;
+    const wKey = `${section.name}_w`;
+    const correct = Math.min(section.max, Math.max(0, Math.floor(Number(next[cKey]) || 0)));
+    const wrong = Math.min(section.max, Math.max(0, Math.floor(Number(next[wKey]) || 0)));
+    const remaining = section.max - (changed === "c" ? correct : wrong);
+    if (changed === "c") {
+      onChange({ ...next, [cKey]: String(correct), [wKey]: String(Math.min(wrong, remaining)) });
+    } else {
+      onChange({ ...next, [wKey]: String(wrong), [cKey]: String(Math.min(correct, remaining)) });
+    }
+  }
+
   return (
     <div className="panel p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -172,31 +185,37 @@ function SectionPanel({
         <span className="text-center">Doğru</span>
         <span className="text-center">Yanlış</span>
       </div>
-      {sections.map((section) => (
-        <div key={section.name} className="grid grid-cols-[1fr_5rem_5rem] items-center gap-2 border-b border-slate-100 py-3 last:border-0">
-          <span className="text-sm font-semibold text-slate-700">
-            {section.name} <span className="text-xs text-slate-400">/{section.max}</span>
-          </span>
-          <input
-            type="number"
-            min={0}
-            max={section.max}
-            placeholder="0"
-            value={inputs[`${section.name}_c`] ?? ""}
-            onChange={(event) => onChange({ ...inputs, [`${section.name}_c`]: event.target.value })}
-            className="input-field px-2 text-center"
-          />
-          <input
-            type="number"
-            min={0}
-            max={section.max}
-            placeholder="0"
-            value={inputs[`${section.name}_w`] ?? ""}
-            onChange={(event) => onChange({ ...inputs, [`${section.name}_w`]: event.target.value })}
-            className="input-field px-2 text-center"
-          />
-        </div>
-      ))}
+      {sections.map((section) => {
+        const correct = Math.min(section.max, Math.max(0, Number(inputs[`${section.name}_c`]) || 0));
+        const wrong = Math.min(section.max, Math.max(0, Number(inputs[`${section.name}_w`]) || 0));
+        const maxCorrect = section.max - wrong;
+        const maxWrong = section.max - correct;
+        return (
+          <div key={section.name} className="grid grid-cols-[1fr_5rem_5rem] items-center gap-2 border-b border-slate-100 py-3 last:border-0">
+            <span className="text-sm font-semibold text-slate-700">
+              {section.name} <span className="text-xs text-slate-400">/{section.max}</span>
+            </span>
+            <input
+              type="number"
+              min={0}
+              max={maxCorrect}
+              placeholder="0"
+              value={inputs[`${section.name}_c`] ?? ""}
+              onChange={(event) => handleChange({ ...inputs, [`${section.name}_c`]: event.target.value }, section, "c")}
+              className="input-field px-2 text-center"
+            />
+            <input
+              type="number"
+              min={0}
+              max={maxWrong}
+              placeholder="0"
+              value={inputs[`${section.name}_w`] ?? ""}
+              onChange={(event) => handleChange({ ...inputs, [`${section.name}_w`]: event.target.value }, section, "w")}
+              className="input-field px-2 text-center"
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

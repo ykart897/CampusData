@@ -39,7 +39,9 @@ export default function UniversiteListesi() {
       const universityCity = displayCity(university.city).toLocaleLowerCase("tr-TR");
 
       if (search && !name.includes(query) && !universityCity.includes(query)) return false;
-      if (city && university.city !== city) return false;
+      if (city === "__YURT_DISI__") {
+        if (university.region !== "YURT_DISI") return false;
+      } else if (city && university.city !== city) return false;
       if (type && university.type !== type) return false;
       return true;
     });
@@ -80,10 +82,8 @@ export default function UniversiteListesi() {
         />
         <select value={city} onChange={(event) => setCity(event.target.value)} className="input-field">
           <option value="">Tüm şehirler</option>
-          {(cities ?? []).map((cityName) => (
-            <option key={cityName} value={cityName}>
-              {cityName}
-            </option>
+          {buildCityOptions(cities ?? []).map(({ value, label }) => (
+            <option key={value} value={value}>{label}</option>
           ))}
         </select>
         <select value={type} onChange={(event) => setType(event.target.value)} className="input-field">
@@ -176,6 +176,17 @@ function MiniStat({ label, value }: { label: string; value: string }) {
 function sortUniversities(a: University, b: University, sort: SortKey) {
   if (sort === "city") return displayCity(a.city).localeCompare(displayCity(b.city), "tr");
   return a.name.localeCompare(b.name, "tr");
+}
+
+function buildCityOptions(cities: string[]) {
+  const domestic = cities
+    .filter((c) => c !== "BILINMIYOR")
+    .map((c) => ({ value: c, label: c }));
+
+  const yurtDisi = { value: "__YURT_DISI__", label: "YURT DIŞI" };
+
+  const all = [...domestic, yurtDisi];
+  return all.sort((a, b) => a.label.localeCompare(b.label, "tr"));
 }
 
 

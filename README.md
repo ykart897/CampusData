@@ -1,4 +1,4 @@
-﻿# Üniversite Atlası
+# Üniversite Atlası
 
 Türkiye'deki üniversite adayları için lisans programlarını inceleme, filtreleme ve tercih listesi oluşturma platformu.
 
@@ -13,6 +13,7 @@ Türkiye'deki üniversite adayları için lisans programlarını inceleme, filtr
 | Veritabanı | PostgreSQL, Flyway |
 | Cache | Redis |
 | Auth | JWT, Spring Security, BCrypt |
+| Dağıtım | Docker, Docker Compose, nginx |
 
 ## Modüller
 
@@ -22,36 +23,30 @@ Türkiye'deki üniversite adayları için lisans programlarını inceleme, filtr
 - Net Sihirbazı: puan hesaplama yardımcı ekranı
 - Tercih Listem: kullanıcıya özel lisans tercih listeleri
 
-## Hızlı Başlangıç
+## Hızlı Başlangıç (Docker ile)
+
+Tüm sistem (Postgres + Redis + Backend + Frontend) tek komutla:
 
 ```powershell
-docker compose up -d
+docker compose up -d --build
 ```
 
-Backend:
+Veri import (bir kerelik):
 
 ```powershell
-cd backend
-mvn spring-boot:run
+$env:YOKATLAS_IMPORT_MODE="import"
+$env:YOKATLAS_IMPORT_APPROVED="true"
+$env:YOKATLAS_SNAPSHOT_PATH="database/snapshots/yokatlas-lisans-2026-05-16T11-16-07.841Z.json"
+node database/import_yokatlas_api.mjs
 ```
 
-Frontend:
+Adresler:
 
-```powershell
-cd frontend
-npm install
-npm run dev
-```
+- Frontend: `http://localhost`
+- Backend API: `http://localhost:8080`
+- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 
-Varsayılan adresler:
-
-- Frontend: `http://127.0.0.1:5173`
-- Backend: `http://127.0.0.1:8080`
-- Swagger UI: `http://127.0.0.1:8080/swagger-ui/index.html`
-
-## Veri Notu
-
-Proje lisans programı verisiyle çalışır. Seed script'i mevcut veritabanını temizleyen bir bakım aracıdır; canlı veya korunması gereken veride çalıştırmadan önce yedek alınmalıdır.
+Detaylı kurulum: `ARKADASA_GONDER.md` dosyasına bakın.
 
 ## YÖK Atlas Verisini Yenileme
 
@@ -70,7 +65,6 @@ Tam snapshot almak için `YOKATLAS_MAX_PAGES_PER_SCORE` değişkenini kaldırın
 Doğrulanmış snapshot'ı Docker PostgreSQL'e kullanıcı/tercih verilerini silmeden upsert etmek için:
 
 ```powershell
-docker compose up -d
 $env:YOKATLAS_IMPORT_MODE="import"
 $env:YOKATLAS_IMPORT_APPROVED="true"
 $env:YOKATLAS_SNAPSHOT_PATH="database/snapshots/yokatlas-lisans-....json"
@@ -79,11 +73,13 @@ node database/import_yokatlas_api.mjs
 
 Import işlemi açık onay değişkeni olmadan çalışmaz. Bu akış `kullanicilar`, `tercih_listeleri` ve `tercih_ogeleri` tablolarını silmez; üniversite, program ve yıllık verileri snapshot üzerinden upsert eder. Import sonunda üniversite, program, yıllık veri ve yetim kayıt kontrolleri otomatik yapılır.
 
+## Şema Genişlemeleri
+
 V11 sonrası şema, YÖK Atlas'ta bulunan ek alanlar için genişletildi:
 
 - Program/kılavuz metadata alanları: il kodu, program grubu, birim türü, öğrenim türü, burs/ücret ham etiketleri.
 - Yıllık yerleşme alanları: yıl kontenjanı, kayıt yaptıran, ek yerleşen, ek kayıt yaptıran.
-- Değişken detay kategorileri için `yokatlas_program_detay_verileri` JSONB tablosu: cinsiyet, il/lise dağılımları, tercih eğilimleri, net/puan/sıra dağılımları ve yerleşme koşulları gibi kategoriler burada saklanabilir.
+- Değişken detay kategorileri için `yokatlas_program_detay_verileri` JSONB tablosu.
 
-
-
+V14: Yurt dışı üniversitelerin şehir bilgisi düzeltmesi (BAKÜ, BİŞKEK, TİRAN vs.).
+V15: Sample data temizliği (snapshot import çakışmasını önler).

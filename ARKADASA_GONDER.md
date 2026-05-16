@@ -1,82 +1,116 @@
 # Arkadasa Gonderme ve Calistirma
 
-Bu zip, projeyi ayni gorunum ve ayni lisans verisiyle calistirmak icin hazirlanmistir.
+Tum sistem (Postgres + Redis + Backend + Frontend) **Docker icinde** calisir.
+Makinede sadece **Docker Desktop** + **Node.js** gerekir.
 
 ## Gerekenler
 
-- Docker Desktop
-- Java JDK 17+
-- Maven 3.8+
-- Node.js 18+
+- Docker Desktop (acik olmali)
+- Node.js 18+ (sadece bir kerelik veri import icin)
 
-## 1. Zip'i ac
+> Java, Maven, npm kurulu olmasi gerekmez. Hepsi Docker icinde.
 
-Zip'i bir klasore ac ve terminali proje kok dizininde ac.
-
-Ornek:
+## 1. Projeyi al
 
 ```powershell
-cd "C:\Users\Kullanici\Desktop\universiteatlasi"
+git clone https://github.com/EnesCanbulat/CampusData.git
+cd CampusData
 ```
 
-## 2. PostgreSQL ve Redis'i baslat
+(veya ZIP'i ac, klasore gir)
+
+## 2. Tum sistemi tek komutla baslat
 
 ```powershell
-docker compose up -d
+docker compose up -d --build
 ```
 
-## 3. Backend'i ilk kez baslat
+Bu komut:
+- Postgres + Redis indirir, baslatir
+- Backend'i derler (Maven build, ~3 dk ilk seferde)
+- Frontend'i derler (npm install + vite build, ~2 dk ilk seferde)
+- Flyway migration'lari calistirir (V1..V15)
+- Hepsini sirayla saglik kontrolu ile baslatir
 
-Bu adim Flyway migration'larini calistirip veritabani tablolarini olusturur.
+Ilerlemeyi izle:
 
 ```powershell
-cd backend
-mvn spring-boot:run
+docker compose logs -f
 ```
 
-Backend acildiktan sonra terminali kapatma. Yeni bir terminal acip proje kok dizinine don.
+`Started UniversiteAtlasiApplication` yazisini gorunce backend hazirdir.
 
-## 4. Lisans verisini iceri aktar
-
-Bu komut zip icindeki hazir YOK Atlas snapshot'ini Docker PostgreSQL'e aktarir.
+## 3. Lisans verisini iceri aktar (bir kerelik)
 
 ```powershell
-cd "C:\Users\Kullanici\Desktop\universiteatlasi"
 $env:YOKATLAS_IMPORT_MODE="import"
 $env:YOKATLAS_IMPORT_APPROVED="true"
-$env:YOKATLAS_SNAPSHOT_PATH="database/snapshots/yokatlas-lisans-2026-05-15T12-38-24.050Z.json"
+$env:YOKATLAS_SNAPSHOT_PATH="database/snapshots/yokatlas-lisans-2026-05-16T11-16-07.841Z.json"
 node database/import_yokatlas_api.mjs
 ```
 
-## 5. Frontend'i baslat
+Cikti: `Upserted and validated 12265 programs` gormelisin.
 
-Yeni bir terminal ac:
+## 4. Tarayicida ac
+
+- Frontend: http://localhost
+- Backend API: http://localhost:8080
+- Backend saglik: http://localhost:8080/actuator/health
+
+## Yonetim Komutlari
 
 ```powershell
-cd frontend
-npm install
-npm run dev
+docker compose stop          # Durdur (veri korunur)
+docker compose start         # Tekrar baslat
+docker compose down          # Container'lari sil (veri korunur)
+docker compose down -v       # HER SEYI sil (veri dahil)
+docker compose logs -f       # Tum loglari izle
+docker compose logs -f backend   # Sadece backend loglari
+docker compose ps            # Calisan servisleri goster
+docker compose up -d --build # Kod degisikligi sonrasi yeniden insa et
 ```
 
-Frontend adresi:
+## Sorun Giderme
 
-```text
-http://127.0.0.1:5173
+### Container baslatilamiyor: port cakismasi
+
+```powershell
+netstat -ano | findstr "80 8080 5432 6379"
 ```
 
-Backend adresi:
+O portu kullanan baska uygulamayi kapat veya `docker-compose.yml`'da portu degistir.
 
-```text
-http://127.0.0.1:8080
+### Veriler bos gorunuyor
+
+Adim 3'u (import) calistirdin mi? Calistirdiysan tekrar et.
+
+### "Imported program count does not match"
+
+```powershell
+docker compose down -v
+docker compose up -d --build
+# Sonra adim 3'u tekrar et
+```
+
+### Backend bashlatma hatasi
+
+```powershell
+docker compose logs backend | Select-Object -Last 50
+```
+
+### Tum sistemi sifirla
+
+```powershell
+docker compose down -v
+docker system prune -f
+docker compose up -d --build
 ```
 
 ## Notlar
 
-- Zip icinde `node_modules`, `frontend/dist`, `backend/target`, `.git` ve IDE klasorleri yoktur. Bunlar kurulumda yeniden uretilir.
-- Veriler bos gorunurse 4. adimdaki import komutunu tekrar calistir.
-- Docker'da daha once ayni isimli eski veritabani varsa temiz baslamak icin once su komut kullanilabilir:
-
-```powershell
-docker compose down -v
-docker compose up -d
-```
+- Ilk `docker compose up --build` ~5-8 dk surer (image build).
+- Sonraki baslamalar ~30 sn.
+- Kod degistirirseniz `docker compose up -d --build` yeniden insa eder.
+- Veriler `postgres_data` volume'unde kalir, container silinse de bozulmaz.
+- Backend Dockerfile multi-stage build kullanir: build asamasinda Maven, runtime'da sadece JRE → kucuk image.
+- Frontend Dockerfile da multi-stage: Node ile build, nginx ile servis.

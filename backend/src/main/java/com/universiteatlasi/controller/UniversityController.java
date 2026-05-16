@@ -35,7 +35,7 @@ public class UniversityController {
 
         return ResponseEntity.ok(universities.stream()
             .map(u -> new UniversitySummaryResponse(
-                u.getId(), u.getName(), u.getCity(), u.getType().name(),
+                u.getId(), u.getName(), u.getCity(), u.getRegion(), u.getType().name(),
                 u.getFoundingYear(), u.getWebsiteUrl(),
                 u.getStudentCount(), u.getFacultyCount()
             ))
@@ -74,7 +74,7 @@ public class UniversityController {
     }
 
     public record UniversitySummaryResponse(
-        Long id, String name, String city, String type,
+        Long id, String name, String city, String region, String type,
         Integer foundingYear, String websiteUrl,
         Integer studentCount, Integer facultyCount
     ) {}
