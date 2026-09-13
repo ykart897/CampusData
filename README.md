@@ -44,48 +44,15 @@ Choosing a university in Turkey depends on scattered program metadata, yearly qu
 frontend/                 React application and Playwright tests
 backend/                  Spring Boot API, auth, services, migrations
 database/                 YOK Atlas snapshot/import tooling
-docs/                     Supporting analysis and project notes
+docs/                     Setup guide, data-quality reports and screenshots
 docker-compose.yml        Local PostgreSQL and Redis services
 ```
 
 ## Quick Start
 
-Start infrastructure:
+Use Java 17, Maven, Node.js 22.12+ and Docker Compose. Follow the [local development guide](docs/SETUP.md) to start the services, load the included demo dataset and run the application.
 
-```powershell
-docker compose up -d
-```
-
-Run the backend:
-
-```powershell
-cd backend
-mvn spring-boot:run
-```
-
-Import the validated snapshot:
-
-```powershell
-$env:YOKATLAS_IMPORT_MODE="import"
-$env:YOKATLAS_IMPORT_APPROVED="true"
-$env:YOKATLAS_SNAPSHOT_PATH="database/snapshots/yokatlas-lisans-2026-05-16T11-16-07.841Z.json"
-node database/import_yokatlas_api.mjs
-```
-
-Run the frontend:
-
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-
-Local URLs:
-
-- Frontend: `http://localhost:5173`
-- Backend: `http://localhost:8080`
-- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
-- Health check: `http://localhost:8080/actuator/health`
+The frontend runs at `http://localhost:5173`, the API at `http://localhost:8080`, and API documentation at `http://localhost:8080/swagger-ui/index.html`.
 
 ## Verification
 
@@ -103,28 +70,29 @@ npm run build
 npm run test:e2e
 ```
 
-Latest local validation covered backend unit tests, frontend production build, Docker build, npm audit, Playwright desktop/mobile flows, and a full snapshot import with orphan-record checks.
+Browser tests require both local servers, imported demo data and Microsoft Edge. GitHub Actions runs backend tests, the frontend build and OSV dependency scanning; browser tests are currently run locally.
 
 ## Data Import Safety
 
-The importer supports two modes:
+The importer supports three modes:
 
 - `snapshot`: fetches YOK Atlas data into `database/snapshots/` without changing the database.
+- `plan`: validates and prepares the upsert without changing the database.
 - `import`: requires `YOKATLAS_IMPORT_APPROVED=true`, creates a database backup, validates the snapshot, and upserts university/program/yearly data without deleting users or preference lists.
 
 After import, it checks counts, orphan programs, orphan yearly rows, blank names, and programs without yearly data.
 
-## Portfolio Notes
+## Documentation
 
-This project demonstrates practical product engineering rather than only CRUD:
+- [Local development and troubleshooting](docs/SETUP.md)
+- [Data tooling and snapshot policy](database/README.md)
+- [Map data workflow](docs/MAP_DATA_PIPELINE.md)
+- [Data coverage report](docs/VERI_KALITE_RAPORU.md) (dated analysis)
+- [Scholarship variant review](docs/VAKIF_PROGRAM_VARYANT_KONTROLU.md) (dated analysis)
 
-- real public data ingestion,
-- relational schema evolution with Flyway,
-- authenticated user workflows,
-- ranking-based recommendation logic,
-- cache-aware backend APIs,
-- production-oriented security hardening,
-- automated CI and visual E2E coverage.
+## Contributors
+
+CampusData was developed collaboratively by [Yusuf](https://github.com/ykart897) and [Enes Canbulat](https://github.com/EnesCanbulat). This repository maintains Yusuf's continued work on the shared project; the original collaboration is preserved in Git history.
 
 ## Project Status
 

@@ -24,11 +24,15 @@ Script:
 
 ## Onaydan Sonra Import
 
-Onaydan sonra import adımı ayrı hazırlanmalıdır:
-- JSON preview doğrulanır.
-- `university_locations` tablosuna üniversite konumu yazılır.
-- `nearby_places` tablosuna yakın yerler `source`, `source_date`, `external_id`, `distance_meters` ile yazılır.
-- Duplicate kontrolü `university_id + source + external_id` üzerinden yapılır.
+Mevcut `database/import_konya_map_data.mjs` script'i sabit Konya pilot verisini aktarır. Preview çıktısını otomatik okumaz; kaynak kodundaki üniversite kimlikleri ve noktalar hedef veritabanıyla karşılaştırılmalıdır.
+
+Script, pilot üniversitelerin `nearby_places` kayıtlarını silip yeniden ekler ve `university_locations` kayıtlarını günceller. İşlem tek transaction içinde çalışır. YÖK Atlas import aracından farklı olarak otomatik yedek veya onay değişkeni kontrolü yoktur; çalıştırmadan önce yedek alın ve veriyi inceleyin.
+
+```powershell
+node database/import_konya_map_data.mjs
+```
+
+Konumlar `source`, `source_date`, `external_id` ve `distance_meters` bilgileriyle saklanır. Yeni şehirler için önce preview ve kaynak doğrulaması yapılmalıdır.
 
 ## Veri Kalitesi
 

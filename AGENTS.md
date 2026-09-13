@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository is a full-stack university atlas application. `backend/` contains the Spring Boot 3 API, Java 17 source under `src/main/java`, Flyway migrations under `src/main/resources/db/migration`, and tests under `src/test/java`. `frontend/` contains the React 18 + TypeScript + Vite app, with pages, layout, UI components, API clients, and formatting helpers under `src/`. `database/` contains Prisma reference schema and YOK Atlas snapshot/import utilities. `docs/` contains setup notes, and `backups/` stores database dumps created before imports.
+This repository is a full-stack university atlas application. `backend/` contains the Spring Boot 3 API, Java 17 source under `src/main/java`, Flyway migrations under `src/main/resources/db/migration`, and tests under `src/test/java`. `frontend/` contains the React 18 + TypeScript + Vite app, with pages, layout, UI components, API clients, and formatting helpers under `src/`. `database/` contains YOK Atlas snapshot/import utilities; Flyway is the source of truth for the schema. `docs/` contains setup and data-quality documentation. `backups/` stores local database dumps and is excluded from Git.
 
 ## Build, Test, and Development Commands
 
@@ -24,7 +24,7 @@ Frontend:
 
 ```powershell
 cd frontend
-npm install
+npm ci
 npm run dev
 npm run build
 ```
