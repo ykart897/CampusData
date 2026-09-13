@@ -1,6 +1,11 @@
 ﻿import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/filter.store";
 
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
+import { usePreferenceStore } from "../../store/filter.store";
+
 const navLinks = [
   { to: "/universite", label: "ÜNİVERSİTE SEÇ" },
   { to: "/programlar", label: "LİSANS PROGRAMI SEÇ" },
@@ -12,7 +17,24 @@ const navLinks = [
 export function Layout() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const setActiveList = usePreferenceStore((s) => s.setActiveList);
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const closeSession = (redirectToLogin: boolean) => {
+    logout();
+    setActiveList(null);
+    queryClient.removeQueries({ queryKey: ["preference-lists"] });
+    const redirect = encodeURIComponent(location.pathname + location.search);
+    navigate(redirectToLogin ? `/giris?redirect=${redirect}` : "/", { replace: true });
+  };
+
+  useEffect(() => {
+    const handleUnauthorized = () => closeSession(true);
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+  });
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -20,12 +42,12 @@ export function Layout() {
         <div className="bg-[#0f3d64] text-white">
           <div className="mx-auto flex max-w-[1180px] items-center justify-between px-4 py-2 text-xs font-bold sm:px-6">
             <span>YÜKSEKÖĞRETİM PROGRAM ATLASI</span>
-            <span className="hidden text-sky-100 sm:inline">Canlı YÖK Atlas kılavuz verileri</span>
+            <span className="hidden text-sky-100 sm:inline">2025 YÖK Atlas kılavuz verileri</span>
           </div>
         </div>
 
         <div className="mx-auto max-w-[1180px] px-4 sm:px-6">
-          <div className="flex min-h-20 flex-wrap items-center justify-between gap-4 py-3">
+          <div className="flex min-h-20 flex-wrap items-center justify-between gap-x-0 gap-y-4 py-3">
             <NavLink to="/" className="flex shrink-0 items-center gap-3">
               <span className="grid h-12 w-12 place-items-center rounded bg-[#1f5d99] text-lg font-black text-white">
                 YA
@@ -62,8 +84,7 @@ export function Layout() {
                   </span>
                   <button
                     onClick={() => {
-                      logout();
-                      navigate("/");
+                      closeSession(false);
                     }}
                     className="secondary-button px-3 py-2"
                   >

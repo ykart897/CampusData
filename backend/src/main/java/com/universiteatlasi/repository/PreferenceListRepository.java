@@ -3,6 +3,7 @@ package com.universiteatlasi.repository;
 import com.universiteatlasi.model.entity.PreferenceList;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,6 +15,6 @@ public interface PreferenceListRepository extends JpaRepository<PreferenceList, 
     @EntityGraph(attributePaths = "preferences")
     List<PreferenceList> findByUser_IdOrderByCreatedAtDesc(String userId);
 
-    @EntityGraph(attributePaths = "preferences")
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     Optional<PreferenceList> findByIdAndUser_Id(String id, String userId);
 }

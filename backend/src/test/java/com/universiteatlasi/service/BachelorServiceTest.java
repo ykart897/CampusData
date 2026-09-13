@@ -1,58 +1,53 @@
 package com.universiteatlasi.service;
 
 import com.universiteatlasi.model.dto.BachelorFilterDto;
+import com.universiteatlasi.model.entity.BachelorProgram;
+import com.universiteatlasi.model.entity.BachelorYearData;
+import com.universiteatlasi.model.entity.University;
 import com.universiteatlasi.model.enums.ScoreType;
+import com.universiteatlasi.model.enums.TeachingType;
+import com.universiteatlasi.model.enums.UniversityType;
+import com.universiteatlasi.repository.BachelorProgramRepository;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.within;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class BachelorServiceTest {
 
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
     @Test
-    @DisplayName("SAY score should be calculated correctly")
-    void sayScoreCalculation() {
-        double score = 160.0 + (40 * 1.6) + (80 * 3.5);
-        assertThat(score).isEqualTo(504.0);
-    }
+    @DisplayName("Wizard should return nearby programs from all three status groups")
+    void wizardReturnsAllStatusGroups() {
+        BachelorProgramRepository repository = mock(BachelorProgramRepository.class);
+        when(repository.findWizardMatches(ScoreType.SAY, 2025)).thenReturn(List.of(
+            program(1L, 100_000),
+            program(2L, 50_000),
+            program(3L, 20_000)
+        ));
 
-    @ParameterizedTest
-    @CsvSource({
-        "SAY, 40, 80, 504.0",
-        "EA,  40, 80, 464.0",
-        "SOZ, 40, 80, 448.0",
-        "TYT, 40,  0, 153.32"
-    })
-    @DisplayName("Score calculation should be verified for different score types")
-    void calculateScoreForDifferentTypes(String type, double tyt, double ayt, double expected) {
-        BachelorService service = new BachelorService(null);
-        double calculated = service.calculateScore(ScoreType.valueOf(type), tyt, ayt, null).toplamPuan();
-        assertThat(calculated).isCloseTo(expected, within(0.1));
+        BachelorService service = new BachelorService(repository);
+
+        assertThat(service.wizardMatch(ScoreType.SAY, 50_000, 2025))
+            .extracting(result -> result.status())
+            .containsExactly("CERTAIN", "RISKY", "DIFFICULT");
     }
 
     @Test
-    @DisplayName("CERTAIN status when user rank is much lower than base rank")
-    void certainStatus() {
-        assertThat(determineStatus(1000, 2000)).isEqualTo("CERTAIN");
-    }
+    @DisplayName("Wizard should reject a non-positive rank")
+    void wizardRejectsInvalidRank() {
+        BachelorService service = new BachelorService(mock(BachelorProgramRepository.class));
 
-    @Test
-    @DisplayName("RISKY status when user rank is close to base rank")
-    void riskyStatus() {
-        assertThat(determineStatus(1900, 2000)).isEqualTo("RISKY");
-    }
-
-    @Test
-    @DisplayName("DIFFICULT status when user rank is higher than base rank")
-    void difficultStatus() {
-        assertThat(determineStatus(3000, 2000)).isEqualTo("DIFFICULT");
+        assertThatThrownBy(() -> service.wizardMatch(ScoreType.SAY, 0, 2025))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -88,10 +83,28 @@ class BachelorServiceTest {
         assertThat(filter.limit()).isEqualTo(20);
     }
 
-    private String determineStatus(int userRank, int baseRank) {
-        double ratio = (double) userRank / baseRank;
-        if (ratio <= 0.8) return "CERTAIN";
-        if (ratio <= 1.2) return "RISKY";
-        return "DIFFICULT";
+    private BachelorProgram program(long id, int baseRank) {
+        University university = University.builder()
+            .id(id)
+            .name("Test Üniversitesi")
+            .city("Ankara")
+            .type(UniversityType.DEVLET)
+            .build();
+        BachelorProgram program = BachelorProgram.builder()
+            .id(id)
+            .university(university)
+            .faculty("Test Fakültesi")
+            .programName("Test Programı " + id)
+            .scoreType(ScoreType.SAY)
+            .teachingType(TeachingType.ORGUNLU)
+            .quota(10)
+            .scholarshipRate(0)
+            .build();
+        program.setYearlyData(List.of(BachelorYearData.builder()
+            .program(program)
+            .year(2025)
+            .baseRank(baseRank)
+            .build()));
+        return program;
     }
 }

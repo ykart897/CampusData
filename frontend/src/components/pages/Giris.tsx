@@ -40,13 +40,13 @@ export default function Giris() {
           {error && <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</div>}
 
           <div>
-            <label className="mb-1.5 block text-sm font-bold text-slate-700">E-posta</label>
-            <input type="email" required autoFocus value={email} onChange={(event) => setEmail(event.target.value)} className="input-field" />
+            <label htmlFor="login-email" className="mb-1.5 block text-sm font-bold text-slate-700">E-posta</label>
+            <input id="login-email" type="email" required autoFocus value={email} onChange={(event) => setEmail(event.target.value)} className="input-field" />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-bold text-slate-700">Şifre</label>
-            <input type="password" required value={password} onChange={(event) => setPassword(event.target.value)} className="input-field" />
+            <label htmlFor="login-password" className="mb-1.5 block text-sm font-bold text-slate-700">Şifre</label>
+            <input id="login-password" type="password" required value={password} onChange={(event) => setPassword(event.target.value)} className="input-field" />
           </div>
 
           <button type="submit" disabled={loading} className="primary-button w-full">
@@ -67,7 +67,9 @@ export default function Giris() {
 
 function getRedirectPath(search: string) {
   const redirect = new URLSearchParams(search).get("redirect");
-  return redirect?.startsWith("/") ? redirect : "/listem";
+  return redirect?.startsWith("/") && !redirect.startsWith("//") && !redirect.includes("\\")
+    ? redirect
+    : "/listem";
 }
 
 

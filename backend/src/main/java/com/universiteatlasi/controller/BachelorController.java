@@ -1,15 +1,16 @@
 package com.universiteatlasi.controller;
 
 import com.universiteatlasi.model.dto.*;
-import com.universiteatlasi.model.dto.ScoreBreakdownDto;
 import com.universiteatlasi.model.enums.ScoreType;
 import com.universiteatlasi.service.BachelorService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bachelor")
@@ -64,24 +65,12 @@ public class BachelorController {
         return ResponseEntity.ok(bachelorService.wizardMatch(scoreType, rank, year));
     }
 
-    /**
-     * GET /api/bachelor/calculate-score
-     * Calculates score from TYT + AYT nets and optionally high school GPA.
-     *
-     * Query params:
-     *   scoreType    - SAY / EA / SOZ / DIL / TYT
-     *   tytNet       - TYT toplam net
-     *   aytNet       - AYT toplam net (varsayılan 0)
-     *   diplomaGrade - Lise diploma notu 0-100 (opsiyonel; girilmezse OBP katkısı eklenmez)
-     */
+    /** Kept temporarily so older clients receive an explicit deprecation response. */
     @GetMapping("/calculate-score")
-    public ResponseEntity<ScoreBreakdownDto> calculateScore(
-            @RequestParam ScoreType scoreType,
-            @RequestParam double tytNet,
-            @RequestParam(defaultValue = "0") double aytNet,
-            @RequestParam(required = false) Double diplomaGrade) {
-        return ResponseEntity.ok(
-                bachelorService.calculateScore(scoreType, tytNet, aytNet, diplomaGrade));
+    public ResponseEntity<Map<String, String>> calculateScore() {
+        return ResponseEntity.status(HttpStatus.GONE).body(Map.of(
+            "message", "Doğrulanmış bir puan modeli bulunmadığı için tahmini puan hesabı kullanımdan kaldırıldı."
+        ));
     }
 }
 

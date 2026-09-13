@@ -34,20 +34,19 @@ public interface BachelorProgramRepository
         """)
     Optional<BachelorProgram> findByIdWithDetails(Long id);
 
-    /** Wizard: programs with base rank >= user rank for given score type and year. */
+    /** Wizard: all programs with a base rank for the requested score type and year. */
     @Query("""
         SELECT p FROM BachelorProgram p
         JOIN FETCH p.university u
         JOIN FETCH p.yearlyData yd
         WHERE p.scoreType = :scoreType
           AND yd.year = :year
-          AND yd.baseRank >= :userRank
+          AND yd.baseRank IS NOT NULL
         ORDER BY yd.baseRank ASC
         """)
     List<BachelorProgram> findWizardMatches(
         @org.springframework.data.repository.query.Param("scoreType") ScoreType scoreType,
-        int year,
-        int userRank
+        int year
     );
 
     @Query("""

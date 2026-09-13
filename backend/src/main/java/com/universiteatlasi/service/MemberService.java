@@ -44,11 +44,13 @@ public class MemberService {
             throw new BadCredentialsException("Current password is incorrect.");
         }
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setTokenVersion(user.getTokenVersion() + 1);
     }
 
     public void deactivate(String userId) {
         User user = getActiveUser(userId);
         user.setActive(false);
+        user.setTokenVersion(user.getTokenVersion() + 1);
     }
 
     private User getActiveUser(String userId) {

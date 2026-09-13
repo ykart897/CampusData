@@ -20,12 +20,12 @@ export function Pagination({ meta, page, onChange }: Props) {
   }
 
   return (
-    <div className="mt-5 flex items-center justify-between gap-3 text-sm">
+    <div className="mt-5 flex flex-col items-stretch justify-between gap-3 text-sm sm:flex-row sm:items-center">
       <span className="font-semibold text-slate-500">
         {start.toLocaleString("tr-TR")}-{end.toLocaleString("tr-TR")} / {meta.total.toLocaleString("tr-TR")} sonuç
       </span>
 
-      <div className="flex items-center justify-center gap-1">
+      <div className="flex max-w-full items-center justify-start gap-1 overflow-x-auto sm:justify-center">
         <button
           disabled={page === 1}
           onClick={() => onChange(page - 1)}

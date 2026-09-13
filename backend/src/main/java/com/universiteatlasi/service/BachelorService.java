@@ -2,7 +2,6 @@ package com.universiteatlasi.service;
 
 import com.universiteatlasi.exception.ResourceNotFoundException;
 import com.universiteatlasi.model.dto.*;
-import com.universiteatlasi.model.dto.ScoreBreakdownDto;
 import com.universiteatlasi.model.entity.BachelorProgram;
 import com.universiteatlasi.model.entity.BachelorYearData;
 import com.universiteatlasi.model.enums.TeachingType;
@@ -19,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -27,7 +27,7 @@ public class BachelorService {
 
     private final BachelorProgramRepository repo;
     // Program list
-    @Cacheable(value = "bachelorPrograms", key = "#filter.hashCode()")
+    @Cacheable("bachelorPrograms")
     public PagedResultDto<BachelorProgramSummaryDto> getPrograms(BachelorFilterDto filter) {
 
         UniversityType uniType   = parseEnum(UniversityType.class, filter.universityType());
@@ -75,9 +75,12 @@ public class BachelorService {
     }
     // Preference wizard matching
     public List<PreferenceMatchDto> wizardMatch(ScoreType scoreType, int rank, int year) {
-        List<BachelorProgram> programs = repo.findWizardMatches(scoreType, year, rank);
+        if (rank < 1) {
+            throw new IllegalArgumentException("Başarı sırası pozitif olmalıdır.");
+        }
+        List<BachelorProgram> programs = repo.findWizardMatches(scoreType, year);
 
-        return programs.stream()
+        List<PreferenceMatchDto> matches = programs.stream()
             .map(p -> {
                 Integer baseRank = p.getYearlyData().stream()
                     .filter(yd -> yd.getYear() == year)
@@ -88,43 +91,17 @@ public class BachelorService {
                 String status = determineStatus(rank, baseRank);
                 return new PreferenceMatchDto(toSummaryDto(p, year), status);
             })
-            .sorted(Comparator.comparing(dto -> statusOrder(dto.status())))
-            .limit(200)
             .toList();
-    }
-    // Net to score calculation
-    /**
-     * @param diplomaGrade Lise diploma notu (0-100 arası). OBP = diplomaGrade x 5 (0-500).
-     *                     Girilmezse (null) OBP katkısı hesaba katılmaz.
-     */
-    public ScoreBreakdownDto calculateScore(ScoreType scoreType,
-                                            double tytNet,
-                                            double aytNet,
-                                            Double diplomaGrade) {
-        double obp = (diplomaGrade != null)
-                ? Math.min(Math.max(diplomaGrade, 0), 100) * 5.0   // 0-500
-                : 0.0;
 
-        double hamPuan = switch (scoreType) {
-            case SAY -> 160.0 + (tytNet * 1.6)  + (aytNet * 3.5);
-            case EA  -> 160.0 + (tytNet * 1.6)  + (aytNet * 3.0);
-            case SOZ -> 160.0 + (tytNet * 1.6)  + (aytNet * 2.8);
-            case DIL -> 160.0 + (tytNet * 0.8)  + (aytNet * 4.0);
-            case TYT -> 100.0 + (tytNet * 1.333);
-        };
+        Comparator<PreferenceMatchDto> proximity = Comparator.comparingLong(match ->
+            Math.abs((long) match.program().latestYearData().baseRank() - rank));
 
-        double obpKatkisi = (scoreType == ScoreType.TYT)
-                ? obp * 0.06
-                : obp * 0.12;
-
-        double toplamPuan = hamPuan + obpKatkisi;
-
-        return new ScoreBreakdownDto(scoreType, tytNet, aytNet, diplomaGrade, obp,
-                                     round2(hamPuan), round2(obpKatkisi), round2(toplamPuan));
-    }
-
-    private double round2(double v) {
-        return Math.round(v * 100.0) / 100.0;
+        return Stream.of("CERTAIN", "RISKY", "DIFFICULT")
+            .flatMap(status -> matches.stream()
+                .filter(match -> status.equals(match.status()))
+                .sorted(proximity)
+                .limit(60))
+            .toList();
     }
     // Helper methods
 
@@ -134,10 +111,6 @@ public class BachelorService {
         if (ratio <= 0.8)  return "CERTAIN";
         if (ratio <= 1.2)  return "RISKY";
         return "DIFFICULT";
-    }
-
-    private int statusOrder(String status) {
-        return switch (status) { case "CERTAIN" -> 0; case "RISKY" -> 1; default -> 2; };
     }
 
     private Sort buildSort(String sort) {

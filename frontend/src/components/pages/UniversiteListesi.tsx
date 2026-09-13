@@ -72,7 +72,7 @@ export default function UniversiteListesi() {
         }
       />
 
-      <div className="panel mb-6 grid grid-cols-[minmax(0,1fr)_14rem_13rem_13rem] gap-3 p-4">
+      <div className="panel mb-6 grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_14rem_13rem_13rem]">
         <input
           type="text"
           placeholder="Üniversite veya şehir ara..."

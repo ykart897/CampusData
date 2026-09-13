@@ -39,6 +39,10 @@ public class User implements UserDetails {
     @Builder.Default
     private boolean active = true;
 
+    @Column(name = "token_version", nullable = false)
+    @Builder.Default
+    private int tokenVersion = 0;
+
     @Column(name = "olusturma_tarihi", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

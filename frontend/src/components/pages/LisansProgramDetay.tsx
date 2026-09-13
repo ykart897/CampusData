@@ -26,6 +26,7 @@ export default function LisansProgramDetay() {
   const queryClient = useQueryClient();
   const [preferenceMessage, setPreferenceMessage] = useState("");
   const [preferenceError, setPreferenceError] = useState("");
+  const preferenceQueryKey = ["preference-lists", user?.id] as const;
 
   const {
     data: program,
@@ -54,7 +55,7 @@ export default function LisansProgramDetay() {
   });
 
   const { data: preferenceLists } = useQuery({
-    queryKey: ["preference-lists"],
+    queryKey: preferenceQueryKey,
     queryFn: preferenceApi.getLists,
     enabled: !!user,
   });
@@ -66,7 +67,7 @@ export default function LisansProgramDetay() {
   const { mutate: addToPreferenceList, isPending: addingToList } = useMutation({
     mutationFn: () => preferenceApi.addItem(selectedListId!, programId),
     onSuccess: (updatedList: any) => {
-      queryClient.invalidateQueries({ queryKey: ["preference-lists"] });
+      queryClient.invalidateQueries({ queryKey: preferenceQueryKey });
       setActiveListId(updatedList.id);
       setPreferenceError("");
       setPreferenceMessage("Program listeye eklendi.");
@@ -172,7 +173,7 @@ export default function LisansProgramDetay() {
       </nav>
 
       <section className="panel overflow-hidden">
-        <div className="grid grid-cols-[minmax(0,1fr)_26rem] gap-8 bg-slate-950 p-8 text-white">
+        <div className="grid gap-8 bg-slate-950 p-5 text-white md:p-8 lg:grid-cols-[minmax(0,1fr)_26rem]">
           <div>
             <div className="flex flex-wrap gap-2">
               <span className={`chip ${scoreColors[program.scoreType]}`}>{program.scoreType}</span>
@@ -206,7 +207,7 @@ export default function LisansProgramDetay() {
         </div>
       </section>
 
-      <div className="mt-6 grid grid-cols-[minmax(0,1fr)_24rem] gap-6">
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <main className="space-y-6">
           <section className="panel p-5">
             <div className="mb-4">

@@ -59,8 +59,9 @@ export default function Kayit() {
 
           {fields.map(({ key, label, type, placeholder }) => (
             <div key={key}>
-              <label className="mb-1.5 block text-sm font-bold text-slate-700">{label}</label>
+              <label htmlFor={`register-${key}`} className="mb-1.5 block text-sm font-bold text-slate-700">{label}</label>
               <input
+                id={`register-${key}`}
                 type={type}
                 required
                 placeholder={placeholder}
@@ -89,7 +90,9 @@ export default function Kayit() {
 
 function getRedirectPath(search: string) {
   const redirect = new URLSearchParams(search).get("redirect");
-  return redirect?.startsWith("/") ? redirect : "/listem";
+  return redirect?.startsWith("/") && !redirect.startsWith("//") && !redirect.includes("\\")
+    ? redirect
+    : "/listem";
 }
 
 

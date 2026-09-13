@@ -1,17 +1,8 @@
 ﻿import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { scoreApi } from "../../services/api";
 import { PageHeader } from "../ui/PageHeader";
 
 type ScoreType = "SAY" | "EA" | "SOZ" | "DIL";
-
-const SCORE_FORMULAS: Record<ScoreType, (tyt: number, ayt: number, diploma: number) => number> = {
-  SAY: (tyt, ayt, diploma) => 160 + tyt * 1.6 + ayt * 3.5 + diploma * 5 * 0.12,
-  EA: (tyt, ayt, diploma) => 160 + tyt * 1.6 + ayt * 3.0 + diploma * 5 * 0.12,
-  SOZ: (tyt, ayt, diploma) => 160 + tyt * 1.6 + ayt * 2.8 + diploma * 5 * 0.12,
-  DIL: (tyt, ayt, diploma) => 160 + tyt * 0.8 + ayt * 4.0 + diploma * 5 * 0.12,
-};
 
 const TYT_SECTIONS = [
   { name: "Türkçe", max: 40 },
@@ -30,11 +21,11 @@ const AYT_SECTIONS: Record<ScoreType, { name: string; max: number }[]> = {
   EA: [
     { name: "Matematik", max: 40 },
     { name: "Edebiyat", max: 24 },
-    { name: "Coşrafya-1", max: 6 },
+    { name: "Coğrafya-1", max: 6 },
   ],
   SOZ: [
     { name: "Edebiyat", max: 24 },
-    { name: "Coşrafya-1", max: 6 },
+    { name: "Coğrafya-1", max: 6 },
     { name: "Tarih-1", max: 10 },
     { name: "Felsefe", max: 12 },
     { name: "Din", max: 8 },
@@ -54,34 +45,21 @@ export default function NetSihirbazi() {
   const [scoreType, setScoreType] = useState<ScoreType>("SAY");
   const [tytInputs, setTytInputs] = useState<Record<string, string>>({});
   const [aytInputs, setAytInputs] = useState<Record<string, string>>({});
-  const [diplomaGrade, setDiplomaGrade] = useState("80");
-
-  const diploma = Math.min(100, Math.max(0, Number(diplomaGrade) || 0));
-  const tytNet = Math.max(0, calcNet(tytInputs, TYT_SECTIONS));
-  const aytNet = Math.max(0, calcNet(aytInputs, AYT_SECTIONS[scoreType]));
-  const localScore = SCORE_FORMULAS[scoreType](tytNet, aytNet, diploma);
-  const hasInput = tytNet > 0 || aytNet > 0;
-
-  const { data: backendResult, isFetching } = useQuery({
-    queryKey: ["scoreCalc", scoreType, tytNet, aytNet, diploma],
-    queryFn: () => scoreApi.calculate({ scoreType, tytNet, aytNet, diplomaGrade: diploma }),
-    enabled: hasInput,
-    staleTime: Infinity,
-  });
-
-  const displayScore = backendResult?.toplamPuan ?? localScore;
+  const tytNet = calcNet(tytInputs, TYT_SECTIONS);
+  const aytNet = calcNet(aytInputs, AYT_SECTIONS[scoreType]);
+  const totalNet = tytNet + aytNet;
 
   return (
     <div className="page-shell">
       <PageHeader
-        kicker="Puan ön izlemesi"
+        kicker="Net hesabı"
         title="Net Sihirbazı"
-        description="TYT ve AYT doğru-yanlış sayılarını gir; tahmini puanını anlık olarak gör."
+        description="TYT ve AYT doğru-yanlış sayılarını gir; dört yanlışın bir doğruyu götürdüğü net hesabını gör."
       />
 
-      <div className="grid grid-cols-[minmax(0,1fr)_24rem] gap-6">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="space-y-5">
-          <div className="panel grid grid-cols-[1fr_13rem] gap-5 p-4">
+          <div className="panel p-4">
             <div>
               <label className="mb-3 block text-sm font-bold text-slate-700">Puan türü</label>
               <div className="grid grid-cols-4 gap-2">
@@ -103,20 +81,9 @@ export default function NetSihirbazi() {
                 ))}
               </div>
             </div>
-            <div>
-              <label className="mb-3 block text-sm font-bold text-slate-700">Diploma notu</label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={diplomaGrade}
-                onChange={(event) => setDiplomaGrade(event.target.value)}
-                className="input-field py-3 font-mono"
-              />
-            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid gap-5 md:grid-cols-2">
             <SectionPanel title="TYT" net={tytNet} sections={TYT_SECTIONS} inputs={tytInputs} onChange={setTytInputs} />
             <SectionPanel title={`AYT (${scoreType})`} net={aytNet} sections={AYT_SECTIONS[scoreType]} inputs={aytInputs} onChange={setAytInputs} />
           </div>
@@ -124,18 +91,16 @@ export default function NetSihirbazi() {
 
         <aside className="panel h-fit overflow-hidden">
           <div className="bg-slate-950 p-6 text-white">
-            <p className="text-sm font-bold uppercase text-teal-200">Tahmini {scoreType}</p>
-            <p className={`mt-3 text-5xl font-black transition-opacity ${isFetching ? "opacity-60" : ""}`}>
-              {displayScore.toFixed(2)}
-            </p>
+            <p className="text-sm font-bold uppercase text-teal-200">Toplam net</p>
+            <p className="mt-3 text-5xl font-black">{totalNet.toFixed(2)}</p>
             <p className="mt-3 text-sm leading-6 text-slate-300">
-              Bu değer yaklaşık hesaplamadır; resmi sonuç yerine geçmez.
+              Puan dönüşümü sınavın standart sapmasına göre değiştiği için burada tahmini puan gösterilmez.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3 p-5">
             <ResultTile label="TYT net" value={tytNet.toFixed(2)} />
             <ResultTile label="AYT net" value={aytNet.toFixed(2)} />
-            <ResultTile label="OBP katkısı" value={(backendResult?.obpKatkisi ?? diploma * 5 * 0.12).toFixed(2)} />
+            <ResultTile label="Puan türü" value={scoreType} />
           </div>
           <div className="border-t border-slate-100 p-5">
             <Link to={`/tercih?scoreType=${scoreType}`} className="primary-button w-full">

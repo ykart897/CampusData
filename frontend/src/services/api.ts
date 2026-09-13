@@ -11,6 +11,16 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && localStorage.getItem("token")) {
+      window.dispatchEvent(new Event("auth:unauthorized"));
+    }
+    return Promise.reject(error);
+  }
+);
+
 export type ScoreType = "SAY" | "EA" | "SOZ" | "DIL" | "TYT";
 export type TeachingType = "ORGUNLU" | "IKINDI" | "UZAKTAN";
 export type UniversityType = "DEVLET" | "VAKIF" | "VAKIF_UCRETLI";
@@ -184,15 +194,25 @@ export type PreferenceMatch = {
   status: "CERTAIN" | "RISKY" | "DIFFICULT" | "UNKNOWN";
 };
 
-export type ScoreBreakdown = {
-  scoreType: ScoreType;
-  tytNet: number;
-  aytNet: number;
-  diplomaGrade: number | null;
-  obp: number;
-  hamPuan: number;
-  obpKatkisi: number;
-  toplamPuan: number;
+export type PreferenceItem = {
+  id: string;
+  rank: number;
+  programId: number;
+  programName: string | null;
+  universityName: string | null;
+  city: string | null;
+  scoreType: string | null;
+  type: string;
+  notes: string | null;
+};
+
+export type PreferenceList = {
+  id: string;
+  name: string;
+  educationLevel: string;
+  enteredScore: number | null;
+  enteredRank: number | null;
+  preferences: PreferenceItem[];
 };
 
 export const bachelorApi = {
@@ -233,18 +253,6 @@ export const universityApi = {
   },
 };
 
-export const scoreApi = {
-  calculate: async (params: {
-    tytNet: number;
-    aytNet: number;
-    scoreType: string;
-    diplomaGrade?: number;
-  }): Promise<ScoreBreakdown> => {
-    const { data } = await api.get("/bachelor/calculate-score", { params });
-    return data;
-  },
-};
-
 export const authApi = {
   login: async (email: string, password: string): Promise<AuthResponse> => {
     const { data } = await api.post("/auth/login", { email, password });
@@ -258,20 +266,24 @@ export const authApi = {
 };
 
 export const preferenceApi = {
-  getLists: async () => {
+  getLists: async (): Promise<PreferenceList[]> => {
     const { data } = await api.get("/preference/lists");
     return data;
   },
-  createList: async (name: string) => {
+  createList: async (name: string): Promise<PreferenceList> => {
     const { data } = await api.post("/preference/lists", { name });
     return data;
   },
-  addItem: async (listId: string, programId: number) => {
+  addItem: async (listId: string, programId: number): Promise<PreferenceList> => {
     const { data } = await api.post(`/preference/lists/${listId}/items`, { programId });
     return data;
   },
   removeItem: async (listId: string, itemId: string) => {
     await api.delete(`/preference/lists/${listId}/items/${itemId}`);
+  },
+  reorder: async (listId: string, itemIds: string[]): Promise<PreferenceList> => {
+    const { data } = await api.patch(`/preference/lists/${listId}/reorder`, itemIds);
+    return data;
   },
 };
 

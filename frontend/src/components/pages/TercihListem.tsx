@@ -1,7 +1,7 @@
 ﻿import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { preferenceApi } from "../../services/api";
+import { preferenceApi, type PreferenceItem, type PreferenceList } from "../../services/api";
 import { useAuthStore, usePreferenceStore } from "../../store/filter.store";
 import { EmptyState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
@@ -13,17 +13,18 @@ export default function TercihListem() {
   const activeListId = usePreferenceStore((s) => s.activeListId);
   const setActiveListId = usePreferenceStore((s) => s.setActiveList);
   const [error, setError] = useState("");
+  const preferenceQueryKey = ["preference-lists", user?.id] as const;
 
   const { data: lists, isLoading } = useQuery({
-    queryKey: ["preference-lists"],
+    queryKey: preferenceQueryKey,
     queryFn: preferenceApi.getLists,
     enabled: !!user,
   });
 
   const { mutate: createList, isPending: creating } = useMutation({
     mutationFn: () => preferenceApi.createList(newListName || "Tercih Listem"),
-    onSuccess: (newList: any) => {
-      queryClient.invalidateQueries({ queryKey: ["preference-lists"] });
+    onSuccess: (newList) => {
+      queryClient.invalidateQueries({ queryKey: preferenceQueryKey });
       setActiveListId(newList.id);
       setNewListName("");
       setError("");
@@ -36,12 +37,24 @@ export default function TercihListem() {
   const { mutate: removeItem } = useMutation({
     mutationFn: ({ listId, itemId }: { listId: string; itemId: string }) => preferenceApi.removeItem(listId, itemId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["preference-lists"] });
+      queryClient.invalidateQueries({ queryKey: preferenceQueryKey });
       setError("");
     },
     onError: () => {
       setError("Tercih silinemedi. Lütfen tekrar deneyin.");
     },
+  });
+
+  const { mutate: reorder, isPending: reordering } = useMutation({
+    mutationFn: ({ listId, itemIds }: { listId: string; itemIds: string[] }) =>
+      preferenceApi.reorder(listId, itemIds),
+    onSuccess: (updatedList) => {
+      queryClient.setQueryData<PreferenceList[]>(preferenceQueryKey, (current) =>
+        current?.map((list) => (list.id === updatedList.id ? updatedList : list))
+      );
+      setError("");
+    },
+    onError: () => setError("Tercih sırası güncellenemedi. Lütfen tekrar deneyin."),
   });
 
   if (!user) {
@@ -65,7 +78,16 @@ export default function TercihListem() {
     );
   }
 
-  const activeList = lists?.find((list: any) => list.id === activeListId) ?? lists?.[0];
+  const activeList = lists?.find((list) => list.id === activeListId) ?? lists?.[0];
+
+  const moveItem = (index: number, offset: -1 | 1) => {
+    if (!activeList) return;
+    const target = index + offset;
+    if (target < 0 || target >= activeList.preferences.length) return;
+    const ordered = [...activeList.preferences];
+    [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
+    reorder({ listId: activeList.id, itemIds: ordered.map((item) => item.id) });
+  };
 
   return (
     <div className="page-shell">
@@ -75,7 +97,7 @@ export default function TercihListem() {
         description="Listelerini oluştur, programları sırala ve 24 tercih hakkını daha kontrollü yönet."
       />
 
-      <div className="grid grid-cols-[20rem_minmax(0,1fr)] gap-6">
+      <div className="grid gap-6 lg:grid-cols-[20rem_minmax(0,1fr)]">
         <aside className="space-y-3">
           <div className="panel space-y-3 p-4">
             <h2 className="font-black text-slate-950">Yeni liste</h2>
@@ -99,7 +121,7 @@ export default function TercihListem() {
               ))}
             </div>
           ) : (
-            lists?.map((list: any) => (
+            lists?.map((list) => (
               <button
                 key={list.id}
                 onClick={() => setActiveListId(list.id)}
@@ -151,7 +173,7 @@ export default function TercihListem() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {activeList.preferences?.map((item: any) => (
+                      {activeList.preferences?.map((item: PreferenceItem, index: number) => (
                         <tr key={item.id} className="hover:bg-teal-50/40">
                           <td className="px-4 py-3 font-mono font-black text-slate-400">{item.rank}</td>
                           <td className="px-4 py-3">
@@ -164,6 +186,24 @@ export default function TercihListem() {
                             <span className="chip border-slate-200 bg-slate-50 text-slate-700">{item.type}</span>
                           </td>
                           <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => moveItem(index, -1)}
+                              disabled={index === 0 || reordering}
+                              className="mr-2 h-8 w-8 font-black text-slate-600 disabled:opacity-30"
+                              title="Yukarı taşı"
+                              aria-label="Yukarı taşı"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              onClick={() => moveItem(index, 1)}
+                              disabled={index === activeList.preferences.length - 1 || reordering}
+                              className="mr-3 h-8 w-8 font-black text-slate-600 disabled:opacity-30"
+                              title="Aşağı taşı"
+                              aria-label="Aşağı taşı"
+                            >
+                              ↓
+                            </button>
                             <button
                               onClick={() => removeItem({ listId: activeList.id, itemId: item.id })}
                               className="font-black text-rose-600 hover:text-rose-800"

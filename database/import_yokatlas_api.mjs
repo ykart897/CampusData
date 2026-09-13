@@ -252,6 +252,9 @@ function buildSql(programs, stats) {
   const lines = [
     "BEGIN;",
     "SET CONSTRAINTS ALL DEFERRED;",
+    "CREATE TEMP TABLE imported_university_ids (id BIGINT PRIMARY KEY) ON COMMIT DROP;",
+    "CREATE TEMP TABLE imported_program_ids (id BIGINT PRIMARY KEY) ON COMMIT DROP;",
+    "CREATE TEMP TABLE imported_year_rows (program_id BIGINT, yil INTEGER, PRIMARY KEY (program_id, yil)) ON COMMIT DROP;",
     "INSERT INTO yokatlas_import_audit (kaynak, kaynak_url, veri_kategorisi, durum, mesaj) VALUES ('YOK_ATLAS', " +
       `${sql(BASE_URL)}, 'LISANS', 'STARTED', 'Snapshot upsert started');`,
   ];
@@ -260,7 +263,8 @@ function buildSql(programs, stats) {
     lines.push(
       `INSERT INTO universitetler (id, ad, sehir, bolge, tur, slug) VALUES (${u.id}, ${sql(u.name)}, ${sql(u.city)}, ${sql(u.region)}, ${sql(u.type)}, ${sql(String(u.id))}) ` +
         `ON CONFLICT (id) DO UPDATE SET ` +
-        `ad = EXCLUDED.ad, sehir = EXCLUDED.sehir, bolge = EXCLUDED.bolge, tur = EXCLUDED.tur, slug = EXCLUDED.slug;`
+        `ad = EXCLUDED.ad, sehir = EXCLUDED.sehir, bolge = EXCLUDED.bolge, tur = EXCLUDED.tur, slug = EXCLUDED.slug;`,
+      `INSERT INTO imported_university_ids (id) VALUES (${u.id});`
     );
   }
 
@@ -388,7 +392,8 @@ function buildSql(programs, stats) {
         `dou_sayisi = EXCLUDED.dou_sayisi, ` +
         `ogr_gor_sayisi = EXCLUDED.ogr_gor_sayisi, ` +
         `ar_gor_sayisi = EXCLUDED.ar_gor_sayisi, ` +
-        `yokatlas_raw = EXCLUDED.yokatlas_raw;`
+        `yokatlas_raw = EXCLUDED.yokatlas_raw;`,
+      `INSERT INTO imported_program_ids (id) VALUES (${programId});`
     );
 
     for (const row of yearRows(program)) {
@@ -422,7 +427,8 @@ function buildSql(programs, stats) {
           `yil_kontenjan = EXCLUDED.yil_kontenjan, ` +
           `kayit_yaptiran = EXCLUDED.kayit_yaptiran, ` +
           `ek_yerlesen = EXCLUDED.ek_yerlesen, ` +
-          `ek_kayit_yaptiran = EXCLUDED.ek_kayit_yaptiran;`
+          `ek_kayit_yaptiran = EXCLUDED.ek_kayit_yaptiran;`,
+        `INSERT INTO imported_year_rows (program_id, yil) VALUES (${programId}, ${row.year});`
       );
     }
   }
@@ -431,7 +437,7 @@ function buildSql(programs, stats) {
     "SELECT setval('universitetler_id_seq', COALESCE((SELECT MAX(id) FROM universitetler), 1), true);",
     "SELECT setval('lisans_programlari_id_seq', COALESCE((SELECT MAX(id) FROM lisans_programlari), 1), true);",
     "SELECT setval('lisans_yil_verileri_id_seq', COALESCE((SELECT MAX(id) FROM lisans_yil_verileri), 1), true);",
-    validationSql(programs.length, universities.size, yearlyRows.length, stats),
+    validationSql(programs.length - skippedPrograms, universities.size, yearlyRows.length, stats),
     "UPDATE yokatlas_import_audit SET durum = 'SUCCESS', kayit_sayisi = " + programs.length + ", bitis_tarihi = NOW(), mesaj = 'Snapshot upsert completed' " +
       "WHERE id = (SELECT MAX(id) FROM yokatlas_import_audit WHERE kaynak = 'YOK_ATLAS' AND veri_kategorisi = 'LISANS');",
     "COMMIT;"
@@ -455,9 +461,13 @@ DECLARE
   orphan_years INTEGER;
   missing_required_scores INTEGER;
 BEGIN
-  SELECT COUNT(*) INTO program_count FROM lisans_programlari;
-  SELECT COUNT(*) INTO university_count FROM universitetler;
-  SELECT COUNT(*) INTO yearly_count FROM lisans_yil_verileri;
+  SELECT COUNT(*) INTO program_count
+  FROM imported_program_ids imported JOIN lisans_programlari p ON p.id = imported.id;
+  SELECT COUNT(*) INTO university_count
+  FROM imported_university_ids imported JOIN universitetler u ON u.id = imported.id;
+  SELECT COUNT(*) INTO yearly_count
+  FROM imported_year_rows imported
+  JOIN lisans_yil_verileri y ON y.program_id = imported.program_id AND y.yil = imported.yil;
   SELECT COUNT(*) INTO orphan_programs FROM lisans_programlari p LEFT JOIN universitetler u ON u.id = p.universite_id WHERE u.id IS NULL;
   SELECT COUNT(*) INTO orphan_years FROM lisans_yil_verileri y LEFT JOIN lisans_programlari p ON p.id = y.program_id WHERE p.id IS NULL;
 
@@ -499,6 +509,25 @@ function runPsql(sqlText) {
   );
 }
 
+async function createBackup() {
+  const backupDirectory = resolve("backups");
+  await mkdir(backupDirectory, { recursive: true });
+  const backupPath = resolve(
+    backupDirectory,
+    `before-yokatlas-import-${new Date().toISOString().replaceAll(":", "-")}.dump`
+  );
+  const result = spawnSync(
+    "docker",
+    ["compose", "exec", "-T", "postgres", "pg_dump", "-U", "postgres", "-d", "universiteatlasi", "--format=custom"],
+    { cwd: new URL("..", import.meta.url), encoding: null, maxBuffer: 1024 * 1024 * 500 }
+  );
+  if (result.status !== 0 || !result.stdout?.length) {
+    throw new Error(`Database backup failed: ${result.stderr?.toString("utf8") ?? "unknown error"}`);
+  }
+  await writeFile(backupPath, result.stdout);
+  return backupPath;
+}
+
 if (!["snapshot", "plan", "import"].includes(MODE)) {
   throw new Error(`Unsupported YOKATLAS_IMPORT_MODE=${MODE}. Use snapshot, plan, or import.`);
 }
@@ -528,6 +557,9 @@ if (!IMPORT_APPROVED) {
 if (programs.length < MIN_PROGRAMS) {
   throw new Error(`Fetched ${programs.length} programs, below YOKATLAS_MIN_PROGRAMS=${MIN_PROGRAMS}. Refusing destructive import.`);
 }
+
+const backupPath = await createBackup();
+console.log(`Created database backup before import: ${backupPath}`);
 
 const result = runPsql(sqlText);
 if (result.stdout) process.stdout.write(result.stdout);

@@ -39,11 +39,11 @@ export default function TercihSihirbazi() {
       <PageHeader
         kicker="Yerleşme analizi"
         title="Tercih Sihirbazı"
-        description="Başarı sıranı gir; lisans programlarını güçlü, dengeli ve zorlayıcı ihtimal gruplarıyla gör."
+        description="Başarı sıranı gir; geçmiş yıl taban sıralarına göre güçlü, dengeli ve zorlayıcı programları gör."
       />
 
       <div className="panel mb-6 p-5">
-        <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-4">
+        <div className="grid items-end gap-4 md:grid-cols-[1fr_1fr_auto]">
           <div>
             <label className="mb-2 block text-sm font-bold text-slate-700">Puan türü</label>
             <div className="grid grid-cols-4 gap-2">
@@ -118,7 +118,7 @@ export default function TercihSihirbazi() {
             {data.map((item) => {
               const style = STATUS_STYLE[item.status] ?? STATUS_STYLE.UNKNOWN;
               return (
-                <div key={item.program.id} className="panel grid grid-cols-[minmax(0,1fr)_10rem_9rem_8rem] items-center gap-4 p-4">
+                <div key={item.program.id} className="panel grid items-center gap-4 p-4 md:grid-cols-[minmax(0,1fr)_10rem_9rem_8rem]">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Link to={`/programlar/${item.program.id}`} className="font-black text-slate-950 transition hover:text-teal-700">

@@ -23,15 +23,14 @@ public class PreferenceService {
     // Get lists
     @Transactional(readOnly = true)
     public List<PreferenceListDto> getLists(String userId) {
-        ensureUserExists(userId);
+        getActiveUser(userId);
         return preferenceListRepo.findByUser_IdOrderByCreatedAtDesc(userId).stream()
             .map(this::toListDto)
             .toList();
     }
     // Create new list
     public PreferenceListDto createList(String userId, CreateListRequestDto request) {
-        User user = userRepo.findById(userId)
-            .orElseThrow(() -> new ResourceNotFoundException("User not found."));
+        User user = getActiveUser(userId);
 
         PreferenceList list = PreferenceList.builder()
             .user(user)
@@ -73,7 +72,10 @@ public class PreferenceService {
     // Remove item from list
     public void removeItem(String userId, String listId, String itemId) {
         PreferenceList list = getList(userId, listId);
-        list.getPreferences().removeIf(i -> i.getId().equals(itemId));
+        boolean removed = list.getPreferences().removeIf(i -> i.getId().equals(itemId));
+        if (!removed) {
+            throw new ResourceNotFoundException("Preference item not found: " + itemId);
+        }
         IntStream.range(0, list.getPreferences().size())
             .forEach(i -> list.getPreferences().get(i).setRank(i + 1));
         preferenceListRepo.save(list);
@@ -85,24 +87,34 @@ public class PreferenceService {
         Map<String, PreferenceItem> itemMap = list.getPreferences().stream()
             .collect(Collectors.toMap(PreferenceItem::getId, i -> i));
 
+        if (itemIdOrder == null
+                || itemIdOrder.size() != itemMap.size()
+                || new HashSet<>(itemIdOrder).size() != itemIdOrder.size()
+                || !itemMap.keySet().equals(new HashSet<>(itemIdOrder))) {
+            throw new IllegalArgumentException("Tercih sırası listedeki tüm öğeleri birer kez içermelidir.");
+        }
+
         IntStream.range(0, itemIdOrder.size()).forEach(i -> {
             PreferenceItem item = itemMap.get(itemIdOrder.get(i));
-            if (item != null) item.setRank(i + 1);
+            item.setRank(i + 1);
         });
 
         return toListDto(preferenceListRepo.saveAndFlush(list));
     }
     // Helpers
     private PreferenceList getList(String userId, String listId) {
-        ensureUserExists(userId);
+        getActiveUser(userId);
         return preferenceListRepo.findByIdAndUser_Id(listId, userId)
             .orElseThrow(() -> new ResourceNotFoundException("Preference list not found: " + listId));
     }
 
-    private void ensureUserExists(String userId) {
-        if (!userRepo.existsById(userId)) {
-            throw new ResourceNotFoundException("User not found.");
+    private User getActiveUser(String userId) {
+        User user = userRepo.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found."));
+        if (!user.isActive()) {
+            throw new IllegalArgumentException("Üyelik aktif değil.");
         }
+        return user;
     }
 
     private String normalizeListName(String name) {
