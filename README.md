@@ -90,6 +90,26 @@ After import, it checks counts, orphan programs, orphan yearly rows, blank names
 - [Data coverage report](docs/VERI_KALITE_RAPORU.md) (dated analysis)
 - [Scholarship variant review](docs/VAKIF_PROGRAM_VARYANT_KONTROLU.md) (dated analysis)
 
+## Yusuf's Verified Contribution
+
+The public Git history attributes the current hardening and portfolio-readiness pass to [Yusuf Kart](https://github.com/ykart897). The traceable work includes:
+
+- Strengthening authentication with token-version revocation, disabled-user checks, explicit unauthorized responses, and configurable CORS origins.
+- Making preference-list updates safer with ownership checks, reorder validation, and a pessimistic write lock for concurrent changes.
+- Reworking the preference wizard around validated ranking bands and removing an unverified score-estimation model instead of presenting speculative results.
+- Adding JUnit coverage for JWT, bachelor-program, and preference-list behavior, plus Playwright authentication and responsive visual flows.
+- Establishing backend/frontend/security CI checks and tightening the guarded YÖK Atlas import workflow.
+
+These claims are limited to changes visible in [the repository history](https://github.com/ykart897/CampusData/commits/main/?author=ykart897); they do not imply sole authorship of the original collaborative project.
+
+## Two-minute demo path
+
+1. Filter the program catalog by city, score type, and ranking range.
+2. Open a program to compare its yearly quota and placement history.
+3. Sign in, add programs to a preference list, and reorder them.
+4. Enter a ranking in the preference wizard and compare certain, risky, and difficult groups.
+5. Resize to a mobile viewport and repeat the catalog-to-preference flow.
+
 ## Contributors
 
 CampusData was developed collaboratively by [Yusuf](https://github.com/ykart897) and [Enes Canbulat](https://github.com/EnesCanbulat). This repository maintains Yusuf's continued work on the shared project; the original collaboration is preserved in Git history.
